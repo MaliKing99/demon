@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const subtotalAmount    = document.getElementById('subtotalAmount');
     const cartCount         = document.getElementById('cartCount');
     const checkoutBtn       = document.getElementById('checkoutBtn');
+    const clearCartBtn      = document.getElementById('clearCartBtn');
     const billModal         = document.getElementById('billModal');
     const closeBillBtn      = document.getElementById('closeBillBtn');
     const billBody          = document.getElementById('billBody');
@@ -27,6 +28,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const contactFooterBtn  = document.getElementById('contactFooterBtn');
     const outOfRangeOverlay = document.getElementById('outOfRangeOverlay');
     const oorMessage        = document.getElementById('oorMessage');
+    // Auth elements
+    const authNavBtn        = document.getElementById('authNavBtn');
+    const signInModal       = document.getElementById('signInModal');
+    const signUpModal       = document.getElementById('signUpModal');
+    const closeSignInBtn    = document.getElementById('closeSignInBtn');
+    const closeSignUpBtn    = document.getElementById('closeSignUpBtn');
+    const signInForm        = document.getElementById('signInForm');
+    const signUpForm        = document.getElementById('signUpForm');
+    const welcomeSignIn     = document.getElementById('welcomeSignIn');
+    const welcomeSignUp     = document.getElementById('welcomeSignUp');
 
     // ── State ─────────────────────────────────────────────────────────────
     let userName       = '';
@@ -38,6 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let userLng        = null;
     let userDistanceKm = 0;
     let deliveryMapInstance = null;  // Leaflet map — reused across receipts
+    let isAuthenticated = false;
+    let currentUser     = null;
+    let accessGranted   = false;  // Track if user has authenticated/guest access
 
 
     // ✅ GLOBAL CURRENCY FORMAT FUNCTION
@@ -70,6 +84,190 @@ function formatPrice(amount) {
     customerNameInput.addEventListener('keydown', e => {
         if (e.key === 'Enter') startOrderingBtn.click();
     });
+
+    // ── Authentication ────────────────────────────────────────────────────
+    // Auth modal helpers
+    function openSignIn() { 
+        signInModal.classList.add('show'); 
+        signUpModal.classList.remove('show');
+    }
+    function openSignUp() { 
+        signUpModal.classList.add('show'); 
+        signInModal.classList.remove('show');
+    }
+    function closeAuthModals() {
+        signInModal.classList.remove('show');
+        signUpModal.classList.remove('show');
+    }
+
+    // Welcome overlay auth links
+    welcomeSignIn.addEventListener('click', e => {
+        e.preventDefault();
+        openSignIn();
+    });
+    welcomeSignUp.addEventListener('click', e => {
+        e.preventDefault();
+        openSignUp();
+    });
+
+    // Auth nav button
+    authNavBtn.addEventListener('click', () => {
+        if (isAuthenticated && currentUser) {
+            const menu = confirm(`Logged in as: ${currentUser.name}\n\nClick OK to Logout`);
+            if (menu) {
+                logoutUser();
+            }
+        } else {
+            openSignIn();
+        }
+    });
+
+    // Modal close buttons
+    closeSignInBtn.addEventListener('click', closeAuthModals);
+    closeSignUpBtn.addEventListener('click', closeAuthModals);
+
+    // Prevent closing welcome overlay - user MUST authenticate
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !accessGranted) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    // Prevent closing sign in/up modals by clicking outside - only allowed by buttons/links
+    signInModal.addEventListener('click', e => {
+        if (e.target === signInModal) {
+            // Don't close, show message
+            const signInContent = signInModal.querySelector('.bill-content');
+            signInContent.style.transform = 'scale(1.02)';
+            setTimeout(() => {
+                signInContent.style.transform = '';
+            }, 200);
+        }
+    });
+
+    signUpModal.addEventListener('click', e => {
+        if (e.target === signUpModal) {
+            // Don't close, show message
+            const signUpContent = signUpModal.querySelector('.bill-content');
+            signUpContent.style.transform = 'scale(1.02)';
+            setTimeout(() => {
+                signUpContent.style.transform = '';
+            }, 200);
+        }
+    });
+
+    // Toggle between sign in and sign up
+    document.getElementById('toggleSignUp').addEventListener('click', e => {
+        e.preventDefault();
+        openSignUp();
+    });
+    document.getElementById('toggleSignIn').addEventListener('click', e => {
+        e.preventDefault();
+        openSignIn();
+    });
+
+
+
+    // Sign up form
+    signUpForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        const name = document.getElementById('signUpName').value.trim();
+        const email = document.getElementById('signUpEmail').value.trim();
+        const password = document.getElementById('signUpPassword').value;
+        const confirm_password = document.getElementById('signUpConfirm').value;
+
+        if (password !== confirm_password) {
+            alert('Passwords do not match!');
+            return;
+        }
+
+        if (password.length < 6) {
+            alert('Password must be at least 6 characters long!');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                isAuthenticated = true;
+                currentUser = { name, email };
+                alert(`Welcome, ${name}! Account created successfully.`);
+                signUpForm.reset();
+                updateAuthUI();
+                // Proceed to location check
+                closeAuthModals();
+                startOrderingBtn.disabled = true;
+                startOrderingBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking location…';
+                checkUserLocation();
+            } else {
+                alert(data.error || 'Sign up failed. Please try again.');
+            }
+        } catch (err) {
+            console.error('Sign up error:', err);
+            alert('An error occurred during sign up.');
+        }
+    });
+
+    // Sign in form
+    signInForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        const email = document.getElementById('signInEmail').value.trim();
+        const password = document.getElementById('signInPassword').value;
+
+        try {
+            const res = await fetch('/api/signin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                isAuthenticated = true;
+                currentUser = { name: data.name, email };
+                alert(`Welcome back, ${data.name}!`);
+                signInForm.reset();
+                updateAuthUI();
+                // Proceed to location check
+                closeAuthModals();
+                startOrderingBtn.disabled = true;
+                startOrderingBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking location…';
+                checkUserLocation();
+            } else {
+                alert(data.error || 'Sign in failed. Please check your credentials.');
+            }
+        } catch (err) {
+            console.error('Sign in error:', err);
+            alert('An error occurred during sign in.');
+        }
+    });
+
+    function logoutUser() {
+        isAuthenticated = false;
+        currentUser = null;
+        alert('Logged out successfully!');
+        updateAuthUI();
+    }
+
+    function updateAuthUI() {
+        // Update the auth nav button
+        if (isAuthenticated && currentUser) {
+            authNavBtn.innerHTML = '<i class="fa-solid fa-user-check"></i>';
+            authNavBtn.title = `Logged in as ${currentUser.name}`;
+        } else {
+            authNavBtn.innerHTML = '<i class="fa-solid fa-user"></i>';
+            authNavBtn.title = 'Account';
+        }
+    }
 
     // ── Geolocation + Delivery Range Check ────────────────────────────────
     function checkUserLocation() {
@@ -144,6 +342,7 @@ function formatPrice(amount) {
 
     function proceedToMenu(distKm) {
         userDistanceKm = distKm;
+        accessGranted = true;  // User has authenticated or continued as guest
         welcomeOverlay.classList.add('hidden');
         setTimeout(() => {
             welcomeOverlay.style.display = 'none';
@@ -388,6 +587,13 @@ function setCategory(cat) {
     });
     closeCartBtn.addEventListener('click', closeCart);
     cartOverlay.addEventListener('click', closeCart);
+    clearCartBtn.addEventListener('click', () => {
+        if (cart.length === 0) return;
+        if (confirm('Are you sure you want to clear your entire cart?')) {
+            cart = [];
+            updateCartUI();
+        }
+    });
     function closeCart() {
         cartSidebar.classList.remove('open');
         cartOverlay.classList.remove('show');
@@ -401,6 +607,13 @@ function setCategory(cat) {
     cancelOrderBtn.addEventListener('click', () => confirmModal.classList.remove('show'));
 
     confirmOrderBtn.addEventListener('click', () => {
+        // ✅ CHECK IF USER IS AUTHENTICATED
+        if (!isAuthenticated) {
+            confirmModal.classList.remove('show');
+            openSignIn();
+            return;
+        }
+
         confirmModal.classList.remove('show');
         closeCart();
         confirmOrderBtn.textContent = 'Placing Order…';

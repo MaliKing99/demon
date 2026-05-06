@@ -28,6 +28,9 @@
             <p>Enter your name to begin your luxury dining experience</p>
             <input type="text" id="customerName" placeholder="Your Name" autocomplete="off">
             <button id="startOrderingBtn">Begin Ordering &nbsp;<i class="fa-solid fa-arrow-right"></i></button>
+            <div class="welcome-auth-links">
+                <p>or <a href="#" id="welcomeSignIn">Sign In</a> / <a href="#" id="welcomeSignUp">Sign Up</a></p>
+            </div>
             <div class="made-by">Made by <strong>Runtime Terrors</strong></div>
         </div>
     </div>
@@ -48,6 +51,9 @@
         <div class="nav-actions">
             <button class="nav-icon-btn" id="contactNavBtn" title="Contact Us">
                 <i class="fa-solid fa-phone"></i>
+            </button>
+            <button class="nav-icon-btn" id="authNavBtn" title="Account">
+                <i class="fa-solid fa-user"></i>
             </button>
             <div class="cart-btn" id="openCartBtn">
                 <i class="fa-solid fa-cart-shopping"></i>
@@ -112,9 +118,14 @@
                     <span id="subtotalAmount">$0.00</span>
                 </div>
             </div>
-            <button class="checkout-btn" id="checkoutBtn" disabled>
-                <i class="fa-solid fa-lock"></i> &nbsp;Proceed to Checkout
-            </button>
+            <div class="cart-actions">
+                <button class="checkout-btn" id="checkoutBtn" disabled>
+                    <i class="fa-solid fa-lock"></i> &nbsp;Proceed to Checkout
+                </button>
+                <button class="clear-cart-btn" id="clearCartBtn" title="Clear all items">
+                    <i class="fa-solid fa-trash"></i> &nbsp;Clear Cart
+                </button>
+            </div>
         </div>
     </div>
     <div class="cart-overlay" id="cartOverlay"></div>
@@ -184,6 +195,62 @@
                     <a href="#" title="Twitter / X"><i class="fa-brands fa-x-twitter"></i></a>
                     <a href="#" title="Facebook"><i class="fa-brands fa-facebook"></i></a>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign In Modal -->
+    <div class="bill-modal" id="signInModal">
+        <div class="bill-content auth-content">
+            <div class="bill-header">
+                <h2><i class="fa-solid fa-sign-in-alt"></i> &nbsp;Sign In</h2>
+                <button class="close-bill" id="closeSignInBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="auth-body">
+                <form id="signInForm">
+                    <div class="form-group">
+                        <label for="signInEmail">Email</label>
+                        <input type="email" id="signInEmail" name="email" placeholder="your@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signInPassword">Password</label>
+                        <input type="password" id="signInPassword" name="password" placeholder="Enter your password" required>
+                    </div>
+                    <button type="submit" class="btn-confirm" style="width: 100%;">Sign In</button>
+                </form>
+                <p class="auth-toggle">Don't have an account? <a href="#" id="toggleSignUp">Sign Up</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign Up Modal -->
+    <div class="bill-modal" id="signUpModal">
+        <div class="bill-content auth-content">
+            <div class="bill-header">
+                <h2><i class="fa-solid fa-user-plus"></i> &nbsp;Sign Up</h2>
+                <button class="close-bill" id="closeSignUpBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="auth-body">
+                <form id="signUpForm">
+                    <div class="form-group">
+                        <label for="signUpName">Full Name</label>
+                        <input type="text" id="signUpName" name="name" placeholder="Your full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signUpEmail">Email</label>
+                        <input type="email" id="signUpEmail" name="email" placeholder="your@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signUpPassword">Password</label>
+                        <input type="password" id="signUpPassword" name="password" placeholder="Create a password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signUpConfirm">Confirm Password</label>
+                        <input type="password" id="signUpConfirm" name="confirm" placeholder="Confirm password" required>
+                    </div>
+                    <button type="submit" class="btn-confirm" style="width: 100%;">Sign Up</button>
+                </form>
+                <p class="auth-toggle">Already have an account? <a href="#" id="toggleSignIn">Sign In</a></p>
             </div>
         </div>
     </div>

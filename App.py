@@ -1,18 +1,25 @@
 from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 import os, math
 from config import (
     SERVER_LAT, SERVER_LNG,
     MAX_DELIVERY_KM,
     BASE_DELIVERY_CHARGE, VARIABLE_CHARGE_THRESHOLD, VARIABLE_CHARGE_PER_KM,
-    FIXED_PREP_TIME, TRAVEL_PER_KM, HANDOFF_BUFFER,
-    DATABASE_URL
+    FIXED_PREP_TIME, TRAVEL_PER_KM, HANDOFF_BUFFER
 )
 
 app = Flask(__name__)
 app.json.sort_keys = False
 app.config['JSON_SORT_KEYS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+
+# Database configuration with fallback
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://my_postgre_pmd6_user:o6gw3QzK51s57zhW3YFaMS1Q7tKdT6ER@dpg-d7st5d9kh4rs739chfpg-a.ohio-postgres.render.com/my_postgre_pmd6"
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -203,6 +210,28 @@ class MenuItem(db.Model):
             'image_url': self.image_url
         }
 
+class User(db.Model):
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email
+        }
+
 # ── Haversine distance helper ───────────────────────────────────────────────
 def haversine_km(lat1, lon1, lat2, lon2):
     """Return distance in km between two GPS coordinates."""
@@ -374,6 +403,68 @@ def calculate_bill():
         "server_lat":      SERVER_LAT,
         "server_lng":      SERVER_LNG
     })
+
+# ── Authentication Routes ──────────────────────────────────────────────────
+@app.route("/api/signup", methods=["POST"])
+def signup():
+    data = request.get_json(force=True)
+    if not data:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+    
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+    
+    # Validation
+    if not name or not email or not password:
+        return jsonify({"error": "Name, email, and password are required"}), 400
+    
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters long"}), 400
+    
+    # Check if user already exists
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        return jsonify({"error": "Email already registered"}), 409
+    
+    # Create new user
+    try:
+        user = User(name=name, email=email)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "User created successfully",
+            "user": user.to_dict()
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error creating user: {str(e)}"}), 500
+
+@app.route("/api/signin", methods=["POST"])
+def signin():
+    data = request.get_json(force=True)
+    if not data:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+    
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+    
+    # Validation
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+    
+    # Find user
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.check_password(password):
+        return jsonify({"error": "Invalid email or password"}), 401
+    
+    return jsonify({
+        "message": "Signed in successfully",
+        "user": user.to_dict(),
+        "name": user.name
+    }), 200
 
 if __name__ == "__main__":
     init_db()
