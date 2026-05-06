@@ -468,8 +468,9 @@ def signin():
 
 if __name__ == "__main__":
     init_db()
-    # Development mode - uses debug=True locally
-    app.run(debug=True, port=5000)
+    # Development mode only - debug=True only for local development
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
 else:
-    # Render/Production will use this
+    # Render/Production will use this (gunicorn handles the running)
     init_db()
