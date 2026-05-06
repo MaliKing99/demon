@@ -14,9 +14,13 @@ app.json.sort_keys = False
 app.config['JSON_SORT_KEYS'] = False
 
 # Database configuration with fallback
-DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL:
-    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+url = os.getenv("DATABASE_URL")
+
+if url and url.startswith("postgres://"):
+    url = url.replace("postgres://", "postgresql://", 1)
+
+if url:
+    app.config["SQLALCHEMY_DATABASE_URI"] = url
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://my_postgre_pmd6_user:o6gw3QzK51s57zhW3YFaMS1Q7tKdT6ER@dpg-d7st5d9kh4rs739chfpg-a.ohio-postgres.render.com/my_postgre_pmd6"
 
