@@ -477,4 +477,8 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=True)
 else:
     # Render/Production will use this (gunicorn handles the running)
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        print(f"[WARNING] init_db() failed at startup: {e}")
+        print("[WARNING] The app will still start; DB will be initialized on first request.")
